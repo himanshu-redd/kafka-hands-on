@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/IBM/sarama"
+	"gocloud.dev/pubsub"
+	"gocloud.dev/pubsub/kafkapubsub"
 )
 
 const (
@@ -14,7 +19,7 @@ const (
 )
 
 func main() {
-	fmt.Printf("Staring producer\n")
+	log.Printf("Staring producer\n")
 
 	resp, err := http.Get(fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?lat=%v&lon=%v&appid=%v",
 		Longitude, Latitude, ApiKey))
@@ -27,5 +32,26 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	fmt.Printf("Weather Response: %v\n", string(body))
+	log.Printf("Weather Response: %v\n", string(body))
+
+	saramaConfig := sarama.NewConfig()
+	saramaConfig.Producer.Timeout = 5
+	saramaConfig.Producer.Transaction.Retry.Max = 20
+	saramaConfig.Producer.Return.Successes = true
+
+	topic, err := kafkapubsub.OpenTopic([]string{"localhost:9092"}, saramaConfig, "current-weather", nil)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	bytes := []byte(string(body))
+	err = topic.Send(context.Background(), &pubsub.Message{
+		Body: bytes,
+	})
+
+	if err != nil {
+		log.Fatal(err.Error())
+	} else {
+		log.Printf("Message sent successfully\n")
+	}
 }
