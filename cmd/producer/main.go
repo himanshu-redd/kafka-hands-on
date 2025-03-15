@@ -27,5 +27,5 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	fmt.Printf("Response: %v\n", string(body))
+	fmt.Printf("Weather Response: %v\n", string(body))
 }
